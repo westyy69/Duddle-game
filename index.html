@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>DUEL JUMP</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Teko:wght@400;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0a0a0f; --panel:#12121a; --border:#2a2a3a;
+    --p1:#00e5ff; --p2:#ff3d71; --gold:#ffd700;
+    --text:#e0e0f0; --dim:#666680;
+  }
+  html,body { width:100%; height:100%; background:var(--bg); color:var(--text);
+    font-family:'Share Tech Mono',monospace; overflow:hidden; touch-action:none; }
+  .screen { position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:20px; padding:20px; }
+  .screen.hidden { opacity:0; pointer-events:none; }
+  .logo { font-family:'Teko',sans-serif; font-size:clamp(48px,12vw,90px); font-weight:700;
+    letter-spacing:6px; background:linear-gradient(135deg,var(--p1),var(--p2));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 0 20px rgba(0,229,255,.3)); line-height:1; }
+  .subtitle { font-size:13px; color:var(--dim); letter-spacing:3px; text-transform:uppercase; }
+  .btn { background:transparent; border:1px solid var(--border); color:var(--text);
+    font-family:'Share Tech Mono',monospace; font-size:14px; letter-spacing:2px;
+    padding:14px 32px; cursor:pointer; transition:all .2s; position:relative;
+    overflow:hidden; min-width:220px; text-align:center; user-select:none; }
+  .btn::before { content:''; position:absolute; inset:0;
+    background:linear-gradient(135deg,var(--p1),var(--p2)); opacity:0; transition:opacity .2s; }
+  .btn:hover::before { opacity:.15; }
+  .btn:hover { border-color:var(--p1); color:var(--p1); }
+  .btn:active { transform:scale(.97); }
+  .btn.primary { border-color:var(--p1); color:var(--p1); }
+  input[type=text] { background:var(--panel); border:1px solid var(--border); color:var(--text);
+    font-family:'Share Tech Mono',monospace; font-size:13px; padding:12px 16px;
+    width:100%; max-width:380px; outline:none; transition:border-color .2s; letter-spacing:1px; }
+  input[type=text]:focus { border-color:var(--p1); }
+  .link-box { background:var(--panel); border:1px solid var(--border); padding:11px 14px;
+    width:100%; max-width:380px; font-size:11px; color:var(--p1);
+    word-break:break-all; line-height:1.5; user-select:all; }
+  .copy-btn { width:100%; max-width:380px; background:transparent; border:1px solid var(--p1);
+    color:var(--p1); font-family:'Share Tech Mono',monospace; font-size:12px; letter-spacing:2px;
+    padding:10px; cursor:pointer; transition:all .2s; user-select:none; }
+  .copy-btn:hover { background:rgba(0,229,255,.1); }
+  .copy-btn:active { transform:scale(.97); }
+  .copy-btn.copied { border-color:#4cff91; color:#4cff91; }
+  .status-msg { font-size:13px; color:var(--dim); text-align:center; letter-spacing:1px; }
+  .pulse { animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  #gameWrap { position:fixed; inset:0; display:flex; flex-direction:column; }
+  #gameWrap.hidden { display:none; }
+  #hud { height:48px; background:var(--panel); border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 16px; flex-shrink:0; gap:8px; }
+  .hud-player { display:flex; align-items:center; gap:10px;
+    font-family:'Teko',sans-serif; font-size:20px; }
+  .hud-score { font-size:28px; font-weight:700; min-width:28px; text-align:center; }
+  .hud-name { font-size:15px; letter-spacing:1px; }
+  .hud-p1{color:var(--p1);} .hud-p2{color:var(--p2);}
+  .hud-center { text-align:center; font-family:'Teko',sans-serif; }
+  .hud-round { font-size:13px; color:var(--dim); letter-spacing:2px; }
+  #canvas { flex:1; display:block; width:100%; }
+  #controls { display:none; height:130px; background:var(--panel);
+    border-top:1px solid var(--border); flex-shrink:0; user-select:none; }
+  @media (pointer:coarse) { #controls { display:flex; } }
+  .ctrl-left,.ctrl-right { display:flex; align-items:center;
+    justify-content:space-around; flex:1; padding:10px; }
+  .ctrl-btn { width:58px; height:58px; border-radius:50%; border:2px solid var(--border);
+    background:rgba(255,255,255,.04); color:var(--text); display:flex;
+    align-items:center; justify-content:center; cursor:pointer; transition:all .1s;
+    -webkit-tap-highlight-color:transparent; touch-action:none;
+    user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+  .ctrl-btn svg { pointer-events:none; }
+  .ctrl-btn.active { background:rgba(0,229,255,.15); border-color:var(--p1); transform:scale(.93); }
+  .ctrl-btn.shoot-btn.active { background:rgba(255,61,113,.2); border-color:var(--p2); transform:scale(.93); }
+  .ctrl-divider { width:1px; background:var(--border); height:80%; align-self:center; }
+  #overlay { position:fixed; inset:0; background:rgba(10,10,15,.88);
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:12px; z-index:100; backdrop-filter:blur(4px); }
+  #overlay.hidden { display:none; }
+  #overlay .big-text { font-family:'Teko',sans-serif; font-size:clamp(60px,15vw,120px); font-weight:700; line-height:1; }
+  #overlay .sub-text { font-size:14px; color:var(--dim); letter-spacing:3px; }
+  body::before { content:''; position:fixed; inset:0;
+    background-image:linear-gradient(rgba(42,42,58,.3) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(42,42,58,.3) 1px,transparent 1px);
+    background-size:40px 40px; pointer-events:none; z-index:-1; }
+  .sep { width:100%; max-width:380px; height:1px; background:var(--border); }
+  .small { font-size:11px; color:var(--dim); text-align:center; }
+</style>
+</head>
+<body>
+
+<div class="screen" id="menuScreen">
+  <div class="logo">DUEL<br>JUMP</div>
+  <div class="subtitle">2 players · 10 rounds · 3 hits to kill</div>
+  <div class="sep"></div>
+  <button class="btn primary" id="btnHost">СОЗДАТЬ ИГРУ</button>
+  <button class="btn" onclick="showScreen('joinScreen')">ПОДКЛЮЧИТЬСЯ</button>
+  <div class="sep"></div>
+  <div class="small">PC: WASD/стрелки · удержание прыжка · Enter/Z — огонь</div>
+</div>
+
+<div class="screen hidden" id="hostScreen">
+  <div class="logo" style="font-size:clamp(32px,8vw,60px)">ХОСТ</div>
+  <div class="status-msg pulse" id="hostStatus">Создаю комнату...</div>
+  <div class="link-box hidden" id="linkBox"></div>
+  <button class="copy-btn hidden" id="copyBtn" onclick="copyLink()">⎘ КОПИРОВАТЬ ССЫЛКУ</button>
+  <div class="status-msg" id="hostWait"></div>
+  <button class="btn" onclick="showScreen('menuScreen');cancelHost()">← НАЗАД</button>
+</div>
+
+<div class="screen hidden" id="joinScreen">
+  <div class="logo" style="font-size:clamp(32px,8vw,60px)">JOIN</div>
+  <div class="subtitle">вставьте ссылку или код</div>
+  <input type="text" id="joinInput" placeholder="https://... или код"/>
+  <button class="btn primary" onclick="joinGame()">ПОДКЛЮЧИТЬСЯ</button>
+  <div class="status-msg" id="joinStatus"></div>
+  <button class="btn" onclick="showScreen('menuScreen');cancelJoin()">← НАЗАД</button>
+</div>
+
+<div id="gameWrap" class="hidden">
+  <div id="hud">
+    <div class="hud-player hud-p1">
+      <span class="hud-score" id="score1">0</span>
+      <span class="hud-name">P1</span>
+    </div>
+    <div class="hud-center">
+      <div class="hud-round" id="roundLabel">ROUND 1 / 10</div>
+    </div>
+    <div class="hud-player hud-p2" style="flex-direction:row-reverse">
+      <span class="hud-score" id="score2">0</span>
+      <span class="hud-name">P2</span>
+    </div>
+  </div>
+  <canvas id="canvas"></canvas>
+  <div id="controls">
+    <div class="ctrl-left">
+      <div class="ctrl-btn" id="btnLeft"
+        ontouchstart="ctrlSet('left',true)" ontouchend="ctrlSet('left',false)" ontouchcancel="ctrlSet('left',false)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      </div>
+      <div class="ctrl-btn" id="btnDown"
+        ontouchstart="ctrlSet('down',true)" ontouchend="ctrlSet('down',false)" ontouchcancel="ctrlSet('down',false)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="ctrl-btn" id="btnRight"
+        ontouchstart="ctrlSet('right',true)" ontouchend="ctrlSet('right',false)" ontouchcancel="ctrlSet('right',false)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </div>
+    <div class="ctrl-divider"></div>
+    <div class="ctrl-right">
+      <div class="ctrl-btn" id="btnJump"
+        ontouchstart="ctrlSet('jump',true)" ontouchend="ctrlSet('jump',false)" ontouchcancel="ctrlSet('jump',false)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 15 12 9 18 15"/></svg>
+      </div>
+      <div class="ctrl-btn shoot-btn" id="btnShoot"
+        ontouchstart="touchShootTap()" ontouchend="ctrlBtnUp('btnShoot')" ontouchcancel="ctrlBtnUp('btnShoot')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="overlay" class="hidden">
+  <div class="big-text" id="overlayBig"></div>
+  <div class="sub-text" id="overlaySub"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════
+const GRAVITY    = 0.40;   // reduced so jump feels controlled
+const JUMP_FORCE = -9.2;   // clears exactly one platform row gap
+const SPEED      = 5;
+const BSPD       = 11;
+const PW = 22, PH = 30;
+const PLH = 10;
+const MAX_HP     = 3;
+const ROUNDS     = 10;
+const CD_SEC     = 3;
+const FALL_MS    = 380;    // fall-through immunity ms
+
+// ═══════════════════════════════════════════════
+//  NETWORK — PeerJS
+// ═══════════════════════════════════════════════
+let peer, conn, isHost = false;
+
+function loadPeerJS(cb) {
+  if (window.Peer) return cb();
+  const s = document.createElement('script');
+  s.src = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+  s.onload = cb;
+  s.onerror = () => alert('PeerJS не загрузился — проверьте интернет');
+  document.head.appendChild(s);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id)?.classList.remove('hidden');
+}
+
+// Host setup
+document.getElementById('btnHost').onclick = () => {
+  showScreen('hostScreen');
+  document.getElementById('hostStatus').textContent = 'Создаю комнату...';
+  document.getElementById('hostStatus').classList.add('pulse');
+  document.getElementById('linkBox').classList.add('hidden');
+  document.getElementById('copyBtn').classList.add('hidden');
+  document.getElementById('hostWait').textContent = '';
+  loadPeerJS(initHost);
+};
+
+function initHost() {
+  peer?.destroy();
+  peer = new Peer(undefined, {debug:0});
+  isHost = true;
+  peer.on('open', id => {
+    const url = location.origin + location.pathname + '#join=' + id;
+    document.getElementById('linkBox').textContent = url;
+    document.getElementById('linkBox').classList.remove('hidden');
+    document.getElementById('copyBtn').classList.remove('hidden');
+    document.getElementById('hostStatus').textContent = 'Ссылка готова:';
+    document.getElementById('hostStatus').classList.remove('pulse');
+    document.getElementById('hostWait').textContent = '⏳ жду игрока...';
+    document.getElementById('hostWait').classList.add('pulse');
+  });
+  peer.on('connection', c => {
+    conn = c; setupConn();
+    document.getElementById('hostWait').textContent = '✓ подключился!';
+    document.getElementById('hostWait').classList.remove('pulse');
+    setTimeout(startGame, 600);
+  });
+  peer.on('error', e => {
+    document.getElementById('hostStatus').textContent = 'Ошибка: ' + e.type;
+  });
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(document.getElementById('linkBox').textContent).catch(()=>{});
+  const b = document.getElementById('copyBtn');
+  b.textContent = '✓ СКОПИРОВАНО'; b.classList.add('copied');
+  setTimeout(() => { b.textContent = '⎘ КОПИРОВАТЬ ССЫЛКУ'; b.classList.remove('copied'); }, 2000);
+}
+function cancelHost() { peer?.destroy(); peer = null; }
+
+// Client join
+function joinGame() {
+  const val = document.getElementById('joinInput').value.trim();
+  const m = val.match(/join=([a-zA-Z0-9_-]+)/);
+  const hostId = m ? m[1] : val;
+  if (!hostId) { document.getElementById('joinStatus').textContent = 'Введите ссылку или код'; return; }
+  document.getElementById('joinStatus').textContent = 'Подключаюсь...';
+  loadPeerJS(() => {
+    peer?.destroy();
+    peer = new Peer(undefined, {debug:0});
+    isHost = false;
+    peer.on('open', () => {
+      conn = peer.connect(hostId, {reliable:true});
+      setupConn();
+      conn.on('open', () => {
+        document.getElementById('joinStatus').textContent = '✓ подключено!';
+        startGame();
+      });
+      conn.on('error', () => document.getElementById('joinStatus').textContent = 'Ошибка соединения');
+    });
+    peer.on('error', e => document.getElementById('joinStatus').textContent = 'Ошибка: ' + e.type);
+  });
+}
+function cancelJoin() { peer?.destroy(); peer = null; }
+
+// Auto-fill from hash
+window.addEventListener('load', () => {
+  const m = location.hash.match(/join=([a-zA-Z0-9_-]+)/);
+  if (m) {
+    showScreen('joinScreen');
+    document.getElementById('joinInput').value = location.hash.slice(1);
+    document.getElementById('joinStatus').textContent = 'Код вставлен — нажмите ПОДКЛЮЧИТЬСЯ';
+  }
+});
+
+function setupConn() {
+  conn.on('data', onNetData);
+  conn.on('close', () => showOverlay('ДИСКОННЕКТ','соединение потеряно','#ff3d71'));
+}
+function netsend(obj) {
+  if (conn?.open) try { conn.send(obj); } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════
+//  GAME STATE
+// ═══════════════════════════════════════════════
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W, H, platforms = [], bullets = [], players = [null,null];
+let scores = [0,0], round = 0;
+let phase = 'idle';   // idle|countdown|playing|roundEnd|gameOver
+let cdVal = CD_SEC, cdAccum = 0;
+let animId, lastTime = 0, paused = false;
+let myIdx = 0;
+
+// ═══════════════════════════════════════════════
+//  INPUT SYSTEM
+//  Each player has an input state object.
+//  HOST: builds inp[0] from local keys, receives inp[1] from network
+//  CLIENT: builds inp[1] from local keys, sends it every frame
+// ═══════════════════════════════════════════════
+function makeInp() {
+  return { left:false, right:false, jump:false, down:false, shoot:false,
+           pJump:false, pDown:false, pShoot:false }; // p* = prev frame
+}
+const inp = [makeInp(), makeInp()];
+
+// Raw keyboard / touch
+const held   = {};           // keys held
+const tch    = { left:false, right:false, jump:false, down:false };
+let shootPend  = false;      // keyboard shoot edge
+let touchShoot = false;      // touch shoot tap
+
+const SHOOT_KEYS = new Set(['Enter','Control','z','Z','x','X']);
+const shootHeld  = new Set();
+
+document.addEventListener('keydown', e => {
+  const k = e.key;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(k)) e.preventDefault();
+  if (SHOOT_KEYS.has(k)) {
+    if (!shootHeld.has(k)) { shootPend = true; shootHeld.add(k); }
+    e.preventDefault(); return;
+  }
+  held[k] = true;
+});
+document.addEventListener('keyup', e => {
+  shootHeld.delete(e.key);
+  held[e.key] = false;
+});
+
+// Touch buttons
+function ctrlSet(k, v) {
+  tch[k] = v;
+  const ids = {left:'btnLeft',right:'btnRight',jump:'btnJump',down:'btnDown'};
+  document.getElementById(ids[k])?.classList.toggle('active', v);
+}
+function touchShootTap() {
+  touchShoot = true;
+  document.getElementById('btnShoot')?.classList.add('active');
+}
+function ctrlBtnUp(id) { document.getElementById(id)?.classList.remove('active'); }
+document.getElementById('controls')?.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+
+// Fill local input for myIdx
+function fillLocalInp() {
+  const ip = inp[myIdx];
+  ip.left  = !!(held['ArrowLeft']  || held['a'] || held['A'] || tch.left);
+  ip.right = !!(held['ArrowRight'] || held['d'] || held['D'] || tch.right);
+  ip.jump  = !!(held['ArrowUp']    || held['w'] || held['W'] || held[' '] || tch.jump);
+  ip.down  = !!(held['ArrowDown']  || held['s'] || held['S'] || tch.down);
+  ip.shoot = shootPend || touchShoot;
+  shootPend = false; touchShoot = false;
+}
+
+// ═══════════════════════════════════════════════
+//  PLATFORMS
+// ═══════════════════════════════════════════════
+function buildPlatforms(W,H) {
+  const ps = [];
+  ps.push({x:0, y:H-4, w:W, h:8, ground:true});
+  const PW2 = W*0.19;
+  // Row vertical spacing ≈ jump height so player can reach exactly one row up
+  // JUMP_FORCE=-9.2, GRAVITY=0.40 → peak height ≈ 9.2²/(2*0.40) ≈ 106px
+  // Row gap in fraction: ~106/H. For H≈500: ~0.21. Use 0.17 to allow landing.
+  const rows = [
+    {y:0.82, xs:[0.04,0.25,0.56,0.77]},
+    {y:0.65, xs:[0.10,0.32,0.50,0.72]},
+    {y:0.49, xs:[0.16,0.36,0.48,0.68]},
+    {y:0.33, xs:[0.05,0.28,0.53,0.76]},
+    {y:0.17, xs:[0.19,0.38,0.43,0.62]},
+  ];
+  rows.forEach(r => r.xs.forEach(xf =>
+    ps.push({x:xf*W, y:r.y*H, w:PW2, h:PLH, ground:false})
+  ));
+  return ps;
+}
+
+// ═══════════════════════════════════════════════
+//  PLAYER FACTORY
+// ═══════════════════════════════════════════════
+function makePlayer(x, y, facing, idx) {
+  return {x, y, vx:0, vy:0, w:PW, h:PH,
+    onGround:false, facing,
+    hp:MAX_HP, dead:false, shootCd:0,
+    fallThrough:false, fallUntil:0,
+    hitFlash:0, idx};
+}
+function resetRound() {
+  bullets = [];
+  const mx = W*0.12;
+  players[0] = makePlayer(mx,       H*0.43,  1, 0);
+  players[1] = makePlayer(W-mx-PW,  H*0.43, -1, 1);
+}
+
+// ═══════════════════════════════════════════════
+//  START
+// ═══════════════════════════════════════════════
+function startGame() {
+  myIdx = isHost ? 0 : 1;
+  scores = [0,0]; round = 0;
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+  document.getElementById('gameWrap').classList.remove('hidden');
+  resize();
+  platforms = buildPlatforms(W,H);
+  phase = 'idle';
+  if (isHost) hostBeginRound();
+  if (animId) cancelAnimationFrame(animId);
+  lastTime = performance.now();
+  animId = requestAnimationFrame(loop);
+}
+
+function hostBeginRound() {
+  round++;
+  resetRound();
+  phase = 'countdown'; cdVal = CD_SEC; cdAccum = 0;
+  updateHUD();
+  showOverlay(String(cdVal), `РАУНД ${round}`, '#ffd700');
+  netsend({type:'roundStart', round, scores, cdVal});
+}
+
+function updateHUD() {
+  document.getElementById('score1').textContent = scores[0];
+  document.getElementById('score2').textContent = scores[1];
+  document.getElementById('roundLabel').textContent = `ROUND ${round} / ${ROUNDS}`;
+}
+
+// ═══════════════════════════════════════════════
+//  LOOP
+// ═══════════════════════════════════════════════
+function loop(ts) {
+  let dt = (ts - lastTime) / 16.667;
+  if (dt > 3) dt = 3;
+  lastTime = ts;
+  if (!paused) { isHost ? hostTick(dt) : clientTick(); draw(); }
+  animId = requestAnimationFrame(loop);
+}
+document.addEventListener('visibilitychange', () => {
+  paused = document.hidden;
+  if (!paused) lastTime = performance.now();
+});
+
+// ═══════════════════════════════════════════════
+//  HOST TICK  ← full simulation authority
+// ═══════════════════════════════════════════════
+function hostTick(dt) {
+  fillLocalInp(); // fills inp[0]
+  // inp[1] is filled by onNetData
+
+  if (phase === 'countdown') {
+    cdAccum += dt / 60;
+    if (cdAccum >= 1) {
+      cdAccum -= 1; cdVal--;
+      if (cdVal <= 0) {
+        phase = 'playing'; hideOverlay(); netsend({type:'go'});
+      } else {
+        showOverlay(String(cdVal), `РАУНД ${round}`, '#ffd700');
+        netsend({type:'cd', val:cdVal});
+      }
+    }
+    // run physics during countdown so players fall naturally
+    doPhysics(dt, false);
+    hostSnap();
+    return;
+  }
+  if (phase !== 'playing') return;
+  doPhysics(dt, true);
+  dooBullets();
+  hostSnap();
+}
+
+// ─── Apply input + physics for one player ───
+function applyPlayer(p, ip, dt, canShoot) {
+  if (!p || p.dead) return;
+
+  // movement
+  if (ip.left)       { p.vx = -SPEED; p.facing = -1; }
+  else if (ip.right) { p.vx =  SPEED; p.facing =  1; }
+  else               { p.vx *= 0.80; }
+
+  // jump: fire on rising edge (was false, now true) AND on ground
+  const jumpRise = ip.jump && !ip.pJump;
+  if (jumpRise && p.onGround) {
+    p.vy = JUMP_FORCE;
+    p.onGround = false;
+  }
+
+  // fall-through: rising edge of down while standing on a non-ground platform
+  const downRise = ip.down && !ip.pDown;
+  if (downRise && p.onGround) {
+    // verify actually standing on a non-ground platform
+    const ng = platforms.some(pl =>
+      !pl.ground &&
+      p.x+p.w > pl.x && p.x < pl.x+pl.w &&
+      Math.abs(p.y+p.h - pl.y) < 6
+    );
+    if (ng) {
+      p.fallThrough = true;
+      p.fallUntil   = performance.now() + FALL_MS;
+      p.onGround    = false;
+    }
+  }
+
+  // shoot: rising edge
+  if (canShoot) {
+    const shootRise = ip.shoot && !ip.pShoot;
+    if (shootRise && p.shootCd <= 0) {
+      fireBullet(p.idx);
+      p.shootCd = 14;
+    }
+  }
+
+  // save prev
+  ip.pJump  = ip.jump;
+  ip.pDown  = ip.down;
+  ip.pShoot = ip.shoot;
+
+  if (p.shootCd > 0) p.shootCd--;
+
+  // gravity & integrate
+  p.vy += GRAVITY * dt;
+  p.x  += p.vx * dt;
+  p.y  += p.vy * dt;
+
+  // walls
+  if (p.x < 0)      { p.x = 0;     p.vx = 0; }
+  if (p.x+p.w > W)  { p.x = W-p.w; p.vx = 0; }
+
+  // fell out of world
+  if (p.y > H + 80) { p.dead = true; if (isHost) onKill(1-p.idx); return; }
+
+  // expire fall-through
+  if (p.fallThrough && performance.now() > p.fallUntil) p.fallThrough = false;
+
+  // platform collisions
+  p.onGround = false;
+  for (const pl of platforms) {
+    if (p.x+p.w <= pl.x || p.x >= pl.x+pl.w) continue;   // no horizontal overlap
+    if (pl.ground) {
+      // ground always solid
+      if (p.vy >= 0 && p.y+p.h >= pl.y && p.y+p.h <= pl.y+pl.h+20) land(p,pl);
+    } else {
+      if (p.fallThrough) continue;
+      // only land on top surface (feet cross top while moving down)
+      if (p.vy >= 0 && p.y+p.h >= pl.y && p.y+p.h <= pl.y+pl.h+16) land(p,pl);
+    }
+  }
+
+  if (p.hitFlash > 0) p.hitFlash -= dt;
+}
+
+function land(p,pl) { p.y = pl.y-p.h; p.vy = 0; p.onGround = true; p.fallThrough = false; }
+
+function doPhysics(dt, canShoot) {
+  applyPlayer(players[0], inp[0], dt, canShoot);
+  applyPlayer(players[1], inp[1], dt, canShoot);
+}
+
+function fireBullet(oi) {
+  const p = players[oi];
+  if (!p || p.dead) return;
+  bullets.push({x:p.x+p.w/2, y:p.y+p.h*0.38, vx:p.facing*BSPD, owner:oi});
+}
+
+function dooBullets() {
+  bullets = bullets.filter(b => {
+    b.x += b.vx;
+    if (b.x < -50 || b.x > W+50) return false;
+    for (const pl of platforms)
+      if (b.x>pl.x && b.x<pl.x+pl.w && b.y>pl.y && b.y<pl.y+pl.h) return false;
+    const e = players[1-b.owner];
+    if (e && !e.dead &&
+        b.x+6>e.x && b.x-6<e.x+e.w && b.y+6>e.y && b.y-6<e.y+e.h) {
+      e.hp--; e.hitFlash = 10;
+      if (e.hp <= 0) { e.dead = true; onKill(b.owner); }
+      return false;
+    }
+    return true;
+  });
+}
+
+function onKill(wi) {
+  if (phase !== 'playing') return;
+  phase = 'roundEnd';
+  scores[wi]++;
+  updateHUD();
+  const col  = wi===0?'#00e5ff':'#ff3d71';
+  const name = wi===0?'P1':'P2';
+  const over = round >= ROUNDS;
+  netsend({type:'kill', wi, scores, over});
+  if (over) {
+    const fw = scores[0]>=scores[1]?0:1;
+    showOverlay((fw?'P2':'P1')+' ПОБЕДИЛ!', `${scores[0]} — ${scores[1]}`, fw?'#ff3d71':'#00e5ff');
+    phase='gameOver'; setTimeout(returnToMenu, 5000);
+  } else {
+    showOverlay(name+' УБИЛ!', `${scores[0]} — ${scores[1]}`, col);
+    setTimeout(hostBeginRound, 2200);
+  }
+}
+
+function hostSnap() {
+  netsend({
+    type:'snap',
+    p: players.map(p => p ? {
+      x:p.x, y:p.y, vx:p.vx, vy:p.vy, facing:p.facing,
+      hp:p.hp, dead:p.dead, hitFlash:p.hitFlash, onGround:p.onGround
+    } : null),
+    b: bullets.map(b=>({x:b.x, y:b.y, vx:b.vx, owner:b.owner})),
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  CLIENT TICK  ← sends input, renders host snapshot
+// ═══════════════════════════════════════════════
+function clientTick() {
+  if (phase === 'idle') return;
+  fillLocalInp(); // fills inp[myIdx] = inp[1]
+  const ip = inp[1];
+  netsend({type:'inp', left:ip.left, right:ip.right, jump:ip.jump, down:ip.down, shoot:ip.shoot});
+  // reset shoot so next frame it's false unless re-pressed
+  inp[1].shoot = false;
+}
+
+// ═══════════════════════════════════════════════
+//  NET DATA
+// ═══════════════════════════════════════════════
+function onNetData(d) {
+  if (!d?.type) return;
+
+  // HOST receives client input
+  if (isHost && d.type === 'inp') {
+    // directly update inp[1] — prev values stay for edge detection
+    const ip = inp[1];
+    ip.left  = d.left;
+    ip.right = d.right;
+    ip.jump  = d.jump;
+    ip.down  = d.down;
+    ip.shoot = d.shoot;
+    return;
+  }
+
+  // CLIENT receives game events
+  if (!isHost) {
+    if (d.type === 'snap') {
+      d.p.forEach((ps, i) => {
+        if (!ps || !players[i]) return;
+        Object.assign(players[i], {
+          x:ps.x, y:ps.y, vx:ps.vx, vy:ps.vy,
+          facing:ps.facing, hp:ps.hp, dead:ps.dead,
+          hitFlash:ps.hitFlash, onGround:ps.onGround
+        });
+      });
+      bullets = d.b.map(b=>({...b}));
+      return;
+    }
+    if (d.type === 'roundStart') {
+      round=d.round; scores=d.scores;
+      resetRound(); phase='countdown'; cdVal=CD_SEC; cdAccum=0;
+      updateHUD(); showOverlay(String(cdVal), `РАУНД ${round}`, '#ffd700');
+      return;
+    }
+    if (d.type === 'cd') { showOverlay(String(d.val), `РАУНД ${round}`, '#ffd700'); return; }
+    if (d.type === 'go') { phase='playing'; hideOverlay(); return; }
+    if (d.type === 'kill') {
+      scores=d.scores; updateHUD(); phase='roundEnd';
+      const wi=d.wi, col=wi===0?'#00e5ff':'#ff3d71', name=wi===0?'P1':'P2';
+      if (d.over) {
+        const fw=scores[0]>=scores[1]?0:1;
+        showOverlay((fw?'P2':'P1')+' ПОБЕДИЛ!', `${scores[0]} — ${scores[1]}`, fw?'#ff3d71':'#00e5ff');
+        setTimeout(returnToMenu, 5000);
+      } else showOverlay(name+' УБИЛ!', `${scores[0]} — ${scores[1]}`, col);
+      return;
+    }
+  }
+}
+
+function returnToMenu() {
+  hideOverlay();
+  document.getElementById('gameWrap').classList.add('hidden');
+  showScreen('menuScreen');
+  peer?.destroy(); peer=null;
+}
+
+// ═══════════════════════════════════════════════
+//  DRAW
+// ═══════════════════════════════════════════════
+const COLS = ['#00e5ff','#ff3d71'];
+function draw() {
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0a0a0f'; ctx.fillRect(0,0,W,H);
+  // grid
+  ctx.strokeStyle='rgba(42,42,58,0.4)'; ctx.lineWidth=1;
+  for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.setLineDash([6,8]);
+  ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();
+  ctx.setLineDash([]);
+  // platforms
+  platforms.forEach(pl=>{
+    if(pl.ground){
+      ctx.fillStyle='#1a1a2a';ctx.fillRect(pl.x,pl.y,pl.w,pl.h);
+      ctx.fillStyle='#2a2a4a';ctx.fillRect(pl.x,pl.y,pl.w,2);
+    } else {
+      ctx.fillStyle='#1c1c2e';ctx.fillRect(pl.x,pl.y,pl.w,pl.h);
+      ctx.fillStyle='rgba(120,120,230,0.55)';ctx.fillRect(pl.x,pl.y,pl.w,2);
+    }
+  });
+  // bullets
+  bullets.forEach(b=>{
+    const c=COLS[b.owner];
+    ctx.save();ctx.shadowColor=c;ctx.shadowBlur=14;
+    ctx.fillStyle=c;ctx.beginPath();ctx.arc(b.x,b.y,5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=c+'44';ctx.beginPath();ctx.arc(b.x-b.vx*1.5,b.y,3,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  });
+  // players
+  players.forEach((p,i)=>{
+    if(!p||p.dead) return;
+    const c=COLS[i], fl=p.hitFlash>0;
+    ctx.save();
+    ctx.shadowColor=c;ctx.shadowBlur=fl?30:16;
+    ctx.fillStyle=fl?'#fff':c+'bb';ctx.fillRect(p.x,p.y,p.w,p.h);
+    ctx.strokeStyle=fl?'#fff':c;ctx.lineWidth=2;ctx.strokeRect(p.x,p.y,p.w,p.h);
+    // eye
+    ctx.fillStyle=fl?'#f00':'#fff';
+    const ex=p.facing>0?p.x+p.w-7:p.x+5;
+    ctx.beginPath();ctx.arc(ex,p.y+10,3,0,Math.PI*2);ctx.fill();
+    // gun
+    const gx=p.facing>0?p.x+p.w:p.x;
+    ctx.strokeStyle=fl?'#fff':c;ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(gx,p.y+p.h*.38);ctx.lineTo(gx+p.facing*11,p.y+p.h*.38);ctx.stroke();
+    ctx.shadowBlur=0;
+    // hp dots
+    const dr=4,dg=11,tw=(MAX_HP-1)*dg,sx=p.x+p.w/2-tw/2;
+    for(let h=0;h<MAX_HP;h++){
+      ctx.beginPath();ctx.arc(sx+h*dg,p.y-10,dr,0,Math.PI*2);
+      ctx.fillStyle=h<p.hp?c:'#222';ctx.fill();
+      ctx.strokeStyle=c+'88';ctx.lineWidth=1;ctx.stroke();
+    }
+    if(i===myIdx){
+      ctx.fillStyle='#ffffff55';ctx.font='bold 8px Share Tech Mono';
+      ctx.textAlign='center';ctx.fillText('YOU',p.x+p.w/2,p.y-18);
+    }
+    ctx.restore();
+  });
+}
+
+// ═══════════════════════════════════════════════
+//  OVERLAY & RESIZE
+// ═══════════════════════════════════════════════
+function showOverlay(big,sub,col) {
+  document.getElementById('overlayBig').textContent=big;
+  document.getElementById('overlayBig').style.color=col;
+  document.getElementById('overlaySub').textContent=sub;
+  document.getElementById('overlay').classList.remove('hidden');
+}
+function hideOverlay(){document.getElementById('overlay').classList.add('hidden');}
+
+function resize(){
+  const ch=window.matchMedia('(pointer:coarse)').matches?130:0;
+  W=canvas.width =document.getElementById('gameWrap').clientWidth;
+  H=canvas.height=document.getElementById('gameWrap').clientHeight-48-ch;
+  if(platforms.length) platforms=buildPlatforms(W,H);
+}
+window.addEventListener('resize',()=>{
+  resize();
+  players.forEach(p=>{if(p&&p.y>H){p.y=H-p.h-10;}});
+});
+</script>
+</body>
+</html>
