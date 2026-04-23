@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>DUEL JUMP</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Teko:wght@400;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --panel: #12121a;
+    --border: #2a2a3a;
+    --p1: #00e5ff;
+    --p2: #ff3d71;
+    --gold: #ffd700;
+    --text: #e0e0f0;
+    --dim: #666680;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  /* ── SCREENS ── */
+  .screen {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 20px;
+    padding: 20px;
+    transition: opacity .3s;
+  }
+  .screen.hidden { opacity: 0; pointer-events: none; }
+
+  .logo {
+    font-family: 'Teko', sans-serif;
+    font-size: clamp(48px, 12vw, 90px);
+    font-weight: 700;
+    letter-spacing: 6px;
+    background: linear-gradient(135deg, var(--p1), var(--p2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 20px rgba(0,229,255,.3));
+    line-height: 1;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 2px;
+    padding: 14px 32px;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+    overflow: hidden;
+    min-width: 220px;
+    text-align: center;
+  }
+  .btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--p1), var(--p2));
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .btn:hover::before { opacity: .15; }
+  .btn:hover { border-color: var(--p1); color: var(--p1); }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { border-color: var(--p1); color: var(--p1); }
+  .btn.danger { border-color: var(--p2); color: var(--p2); }
+
+  input[type=text] {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    padding: 12px 16px;
+    width: 100%;
+    max-width: 380px;
+    outline: none;
+    transition: border-color .2s;
+    letter-spacing: 1px;
+  }
+  input[type=text]:focus { border-color: var(--p1); }
+
+  .link-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding: 11px 14px;
+    width: 100%;
+    max-width: 380px;
+    font-size: 11px;
+    color: var(--p1);
+    word-break: break-all;
+    line-height: 1.5;
+    user-select: all;
+  }
+  .copy-btn {
+    width: 100%;
+    max-width: 380px;
+    background: transparent;
+    border: 1px solid var(--p1);
+    color: var(--p1);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all .2s;
+    user-select: none;
+  }
+  .copy-btn:hover { background: rgba(0,229,255,.1); }
+  .copy-btn:active { transform: scale(.97); }
+  .copy-btn.copied { border-color: #4cff91; color: #4cff91; }
+
+  .status-msg {
+    font-size: 13px;
+    color: var(--dim);
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  .pulse { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── GAME AREA ── */
+  #gameWrap {
+    position: fixed; inset: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  #gameWrap.hidden { display: none; }
+
+  #hud {
+    height: 48px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    flex-shrink: 0;
+    gap: 8px;
+  }
+  .hud-player {
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'Teko', sans-serif;
+    font-size: 20px;
+  }
+  .hud-score {
+    font-size: 28px;
+    font-weight: 700;
+    min-width: 28px;
+    text-align: center;
+  }
+  .hud-name { font-size: 15px; letter-spacing: 1px; }
+  .hud-p1 { color: var(--p1); }
+  .hud-p2 { color: var(--p2); }
+
+  .hud-center {
+    text-align: center;
+    font-family: 'Teko', sans-serif;
+  }
+  .hud-round { font-size: 13px; color: var(--dim); letter-spacing: 2px; }
+  .hud-timer { font-size: 24px; color: var(--gold); }
+
+  #canvas {
+    flex: 1;
+    display: block;
+    width: 100%;
+  }
+
+  /* ── MOBILE CONTROLS ── */
+  #controls {
+    display: none;
+    height: 130px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    position: relative;
+    user-select: none;
+  }
+  @media (pointer: coarse) { #controls { display: flex; } }
+
+  .ctrl-left, .ctrl-right {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    flex: 1;
+    padding: 10px;
+  }
+
+  .ctrl-btn {
+    width: 58px; height: 58px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: rgba(255,255,255,.04);
+    color: var(--text);
+    font-size: 20px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all .1s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  .ctrl-btn svg { pointer-events: none; }
+  .ctrl-btn:active, .ctrl-btn.active {
+    background: rgba(0,229,255,.15);
+    border-color: var(--p1);
+    transform: scale(.93);
+  }
+  .ctrl-btn.shoot-btn:active, .ctrl-btn.shoot-btn.active {
+    background: rgba(255,61,113,.2);
+    border-color: var(--p2);
+  }
+  .ctrl-divider {
+    width: 1px;
+    background: var(--border);
+    height: 80%;
+    align-self: center;
+  }
+
+  /* ── OVERLAY ── */
+  #overlay {
+    position: fixed; inset: 0;
+    background: rgba(10,10,15,.85);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+  }
+  #overlay.hidden { display: none; }
+  #overlay .big-text {
+    font-family: 'Teko', sans-serif;
+    font-size: clamp(60px, 15vw, 120px);
+    font-weight: 700;
+    line-height: 1;
+  }
+  #overlay .sub-text {
+    font-size: 14px;
+    color: var(--dim);
+    letter-spacing: 3px;
+  }
+
+  /* grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(42,42,58,.3) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(42,42,58,.3) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  .sep { width: 100%; max-width: 380px; height: 1px; background: var(--border); }
+  .small { font-size: 11px; color: var(--dim); text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- ── MENU SCREEN ── -->
+<div class="screen" id="menuScreen">
+  <div class="logo">DUEL<br>JUMP</div>
+  <div class="subtitle">2 players · 10 rounds · first kill wins</div>
+  <div class="sep"></div>
+  <button class="btn primary" onclick="showScreen('hostScreen')">СОЗДАТЬ ИГРУ</button>
+  <button class="btn" onclick="showScreen('joinScreen')">ПОДКЛЮЧИТЬСЯ</button>
+  <div class="sep"></div>
+  <div class="small">PC: WASD / стрелки + Enter / Ctrl · Mobile: кнопки</div>
+</div>
+
+<!-- ── HOST SCREEN ── -->
+<div class="screen hidden" id="hostScreen">
+  <div class="logo" style="font-size:clamp(32px,8vw,60px)">ХОСТ</div>
+  <div class="status-msg pulse" id="hostStatus">Создаю комнату...</div>
+  <div class="link-box hidden" id="linkBox"></div>
+  <button class="copy-btn hidden" id="copyBtn" onclick="copyLink()">⎘ КОПИРОВАТЬ ССЫЛКУ</button>
+  <div class="status-msg" id="hostWait"></div>
+  <button class="btn" onclick="showScreen('menuScreen');cancelHost()">← НАЗАД</button>
+</div>
+
+<!-- ── JOIN SCREEN ── -->
+<div class="screen hidden" id="joinScreen">
+  <div class="logo" style="font-size:clamp(32px,8vw,60px)">JOIN</div>
+  <div class="subtitle">вставьте ссылку или код</div>
+  <input type="text" id="joinInput" placeholder="https://... или код" />
+  <button class="btn primary" onclick="joinGame()">ПОДКЛЮЧИТЬСЯ</button>
+  <div class="status-msg" id="joinStatus"></div>
+  <button class="btn" onclick="showScreen('menuScreen');cancelJoin()">← НАЗАД</button>
+</div>
+
+<!-- ── GAME WRAP ── -->
+<div id="gameWrap" class="hidden">
+  <div id="hud">
+    <div class="hud-player hud-p1">
+      <span class="hud-score" id="score1">0</span>
+      <span class="hud-name">P1</span>
+    </div>
+    <div class="hud-center">
+      <div class="hud-round" id="roundLabel">ROUND 1 / 10</div>
+      <div class="hud-timer" id="timerLabel">–</div>
+    </div>
+    <div class="hud-player hud-p2" style="flex-direction:row-reverse">
+      <span class="hud-score" id="score2">0</span>
+      <span class="hud-name">P2</span>
+    </div>
+  </div>
+  <canvas id="canvas"></canvas>
+  <div id="controls">
+    <div class="ctrl-left">
+      <div class="ctrl-btn" id="btnLeft"
+        ontouchstart="ctrlDown('left')" ontouchend="ctrlUp('left')" ontouchcancel="ctrlUp('left')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </div>
+      <div class="ctrl-btn" id="btnDown"
+        ontouchstart="ctrlDown('down')" ontouchend="ctrlUp('down')" ontouchcancel="ctrlUp('down')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="ctrl-btn" id="btnRight"
+        ontouchstart="ctrlDown('right')" ontouchend="ctrlUp('right')" ontouchcancel="ctrlUp('right')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </div>
+    <div class="ctrl-divider"></div>
+    <div class="ctrl-right">
+      <div class="ctrl-btn" id="btnJump"
+        ontouchstart="ctrlDown('jump')" ontouchend="ctrlUp('jump')" ontouchcancel="ctrlUp('jump')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/></svg>
+      </div>
+      <div class="ctrl-btn shoot-btn" id="btnShoot"
+        ontouchstart="ctrlShootDown()" ontouchend="ctrlShootUp()" ontouchcancel="ctrlShootUp()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="7"/></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── OVERLAY ── -->
+<div id="overlay" class="hidden">
+  <div class="big-text" id="overlayBig"></div>
+  <div class="sub-text" id="overlaySub"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  NETWORK — PeerJS WebRTC
+//  ARCHITECTURE: HOST is authoritative.
+//    Host runs full simulation, sends game snapshots every frame.
+//    Client sends only inputs, receives full world state.
+// ══════════════════════════════════════════════════════
+
+const PEERJS_CDN = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+let peer, conn;
+let isHost = false;
+
+function loadPeerJS(cb) {
+  if (window.Peer) { cb(); return; }
+  const s = document.createElement('script');
+  s.src = PEERJS_CDN;
+  s.onload = cb;
+  s.onerror = () => alert('Не удалось загрузить PeerJS. Проверьте интернет.');
+  document.head.appendChild(s);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+// ── HOST ──
+function showHostScreen() {
+  showScreen('hostScreen');
+  document.getElementById('hostStatus').textContent = 'Создаю комнату...';
+  document.getElementById('hostStatus').classList.add('pulse');
+  document.getElementById('linkBox').classList.add('hidden');
+  document.getElementById('copyBtn').classList.add('hidden');
+  document.getElementById('hostWait').textContent = '';
+  loadPeerJS(initHost);
+}
+
+function initHost() {
+  peer = new Peer(undefined, { debug: 0 });
+  isHost = true;
+  peer.on('open', id => {
+    const url = location.origin + location.pathname + '#join=' + id;
+    document.getElementById('linkBox').textContent = url;
+    document.getElementById('linkBox').classList.remove('hidden');
+    document.getElementById('copyBtn').classList.remove('hidden');
+    document.getElementById('hostStatus').textContent = 'Ссылка готова:';
+    document.getElementById('hostStatus').classList.remove('pulse');
+    document.getElementById('hostWait').textContent = '⏳ ожидание игрока...';
+    document.getElementById('hostWait').classList.add('pulse');
+  });
+  peer.on('connection', c => {
+    conn = c;
+    setupConn();
+    document.getElementById('hostWait').textContent = '✓ игрок подключился!';
+    document.getElementById('hostWait').classList.remove('pulse');
+    setTimeout(() => startGame(), 600);
+  });
+  peer.on('error', e => {
+    document.getElementById('hostStatus').textContent = 'Ошибка: ' + e.type;
+  });
+}
+
+function copyLink() {
+  const text = document.getElementById('linkBox').textContent;
+  navigator.clipboard.writeText(text).catch(() => {});
+  const btn = document.getElementById('copyBtn');
+  btn.textContent = '✓ СКОПИРОВАНО';
+  btn.classList.add('copied');
+  setTimeout(() => { btn.textContent = '⎘ КОПИРОВАТЬ ССЫЛКУ'; btn.classList.remove('copied'); }, 2000);
+}
+
+function cancelHost() { if (peer) { peer.destroy(); peer = null; } }
+
+// ── JOIN ──
+function joinGame() {
+  const val = document.getElementById('joinInput').value.trim();
+  let hostId = val;
+  const m = val.match(/join=([a-zA-Z0-9_-]+)/);
+  if (m) hostId = m[1];
+  if (!hostId) { document.getElementById('joinStatus').textContent = 'Введите код или ссылку'; return; }
+  document.getElementById('joinStatus').textContent = 'Подключаюсь...';
+  loadPeerJS(() => {
+    peer = new Peer(undefined, { debug: 0 });
+    isHost = false;
+    peer.on('open', () => {
+      conn = peer.connect(hostId, { reliable: true });
+      setupConn();
+      conn.on('open', () => {
+        document.getElementById('joinStatus').textContent = '✓ подключено!';
+        // Client just starts render loop — host will send state
+        startGame();
+      });
+      conn.on('error', () => {
+        document.getElementById('joinStatus').textContent = 'Ошибка подключения';
+      });
+    });
+    peer.on('error', e => {
+      document.getElementById('joinStatus').textContent = 'Ошибка: ' + e.type;
+    });
+  });
+}
+
+function cancelJoin() { if (peer) { peer.destroy(); peer = null; } }
+
+window.addEventListener('load', () => {
+  const m = location.hash.match(/join=([a-zA-Z0-9_-]+)/);
+  if (m) {
+    showScreen('joinScreen');
+    document.getElementById('joinInput').value = location.hash.slice(1);
+    document.getElementById('joinStatus').textContent = 'Код вставлен — нажмите ПОДКЛЮЧИТЬСЯ';
+  }
+});
+
+document.querySelector('#menuScreen .btn.primary').addEventListener('click', showHostScreen);
+
+// ══════════════════════════════════════════════════════
+//  CONNECTION
+// ══════════════════════════════════════════════════════
+function setupConn() {
+  conn.on('data', onNetData);
+  conn.on('close', () => {
+    showOverlay('ДИСКОННЕКТ', 'соединение потеряно', '#ff3d71', 0);
+  });
+}
+
+function send(obj) {
+  if (conn && conn.open) try { conn.send(obj); } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════
+//  GAME ENGINE
+// ══════════════════════════════════════════════════════
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const GRAVITY     = 0.6;
+const JUMP_FORCE  = -14;
+const SPEED       = 5;
+const BULLET_SPEED = 11;
+const PLAYER_W    = 22;
+const PLAYER_H    = 30;
+const PLAT_H      = 10;
+const TOTAL_ROUNDS = 10;
+const COUNTDOWN   = 3;
+const MAX_HP      = 3;
+// fall-through: player must press down while on ground, then gets immunity for this many ms
+const FALL_IMMUNITY_MS = 400;
+
+let W, H;
+let platforms = [];
+let bullets   = [];
+let players   = [];
+let myIndex   = 0;
+let scores    = [0, 0];
+let round     = 0;
+let phase     = 'countdown';
+let countdownVal   = COUNTDOWN;
+let countdownAccum = 0; // accumulator in seconds
+let animId;
+let lastTime  = 0;
+let paused    = false;
+
+// ── Input state (local only) ──
+const keys = {};
+const touch = { left:false, right:false, jump:false, down:false };
+let shootPending = false;    // edge: set on press, consumed on next update tick
+let jumpPending  = false;
+
+// ── PLATFORMS ──
+function buildPlatforms(W, H) {
+  const ps = [];
+  // Ground — indestructible, no fall-through
+  ps.push({ x:0, y:H-4, w:W, h:6, ground:true });
+
+  const PW = W * 0.18;
+  const rows = [
+    { y:0.80, xs:[0.04, 0.24, 0.56, 0.76] },
+    { y:0.63, xs:[0.10, 0.32, 0.50, 0.72] },
+    { y:0.47, xs:[0.15, 0.36, 0.47, 0.68] },
+    { y:0.31, xs:[0.05, 0.27, 0.55, 0.77] },
+    { y:0.16, xs:[0.18, 0.38, 0.44, 0.64] },
+  ];
+  rows.forEach(row => {
+    row.xs.forEach(xf => {
+      ps.push({ x:xf*W, y:row.y*H, w:PW, h:PLAT_H, ground:false });
+    });
+  });
+  return ps;
+}
+
+// ── PLAYER ──
+function makePlayer(x, y, facing) {
+  return {
+    x, y, vx:0, vy:0,
+    w:PLAYER_W, h:PLAYER_H,
+    onGround:false,
+    facing,
+    hp: MAX_HP,
+    dead:false,
+    shootCooldown:0,
+    // fall-through state
+    fallThrough:false,      // currently passing through platforms
+    fallImmuneUntil:0,      // timestamp until which we ignore platforms
+    // hit flash
+    hitFlash:0,
+  };
+}
+
+function resetRound() {
+  bullets = [];
+  const mx = W * 0.12;
+  players[0] = makePlayer(mx, H * 0.45, 1);
+  players[1] = makePlayer(W - mx - PLAYER_W, H * 0.45, -1);
+}
+
+// ── START ──
+function startGame() {
+  myIndex = isHost ? 0 : 1;
+  scores  = [0, 0];
+  round   = 0;
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById('gameWrap').classList.remove('hidden');
+  resize();
+  platforms = buildPlatforms(W, H);
+  if (isHost) beginNextRound();
+  if (animId) cancelAnimationFrame(animId);
+  lastTime = performance.now();
+  animId = requestAnimationFrame(loop);
+}
+
+// Only host calls this
+function beginNextRound() {
+  round++;
+  resetRound();
+  phase = 'countdown';
+  countdownVal   = COUNTDOWN;
+  countdownAccum = 0;
+  // broadcast to client
+  send({ type:'roundStart', round, scores });
+  updateHUD();
+  showOverlay(String(countdownVal), `РАУНД ${round}`, '#ffd700', 0);
+}
+
+function updateHUD() {
+  document.getElementById('score1').textContent = scores[0];
+  document.getElementById('score2').textContent = scores[1];
+  document.getElementById('roundLabel').textContent = `ROUND ${round} / ${TOTAL_ROUNDS}`;
+}
+
+// ══════════════════════════════════════════════════════
+//  GAME LOOP
+// ══════════════════════════════════════════════════════
+function loop(ts) {
+  // Cap dt to 50ms so background tab doesn't cause huge jumps
+  let dt = (ts - lastTime) / 16.667; // in frames (1 = 60fps frame)
+  if (dt > 3) dt = 3;
+  lastTime = ts;
+
+  if (!paused) {
+    if (isHost) {
+      hostUpdate(dt, ts);
+    } else {
+      clientUpdate(dt, ts);
+    }
+    draw();
+  }
+  animId = requestAnimationFrame(loop);
+}
+
+// ── PAUSE on tab hide ──
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    paused = true;
+  } else {
+    paused = false;
+    lastTime = performance.now(); // reset so dt=0 on resume
+  }
+});
+
+// ══════════════════════════════════════════════════════
+//  HOST UPDATE — runs full simulation, sends snapshots
+// ══════════════════════════════════════════════════════
+function hostUpdate(dt, ts) {
+  if (phase === 'countdown') {
+    countdownAccum += dt / 60; // convert frames to seconds
+    if (countdownAccum >= 1) {
+      countdownAccum -= 1;
+      countdownVal--;
+      if (countdownVal <= 0) {
+        phase = 'playing';
+        hideOverlay();
+        send({ type:'phasePlay' });
+      } else {
+        showOverlay(String(countdownVal), `РАУНД ${round}`, '#ffd700', 0);
+        send({ type:'countdown', val:countdownVal });
+      }
+    }
+    return;
+  }
+  if (phase !== 'playing') return;
+
+  // Read host's local input
+  readMyInput(ts);
+
+  // Simulate both players
+  players.forEach((p, i) => simulatePlayer(p, i, dt, ts));
+
+  // Simulate bullets (host-authoritative)
+  simulateBullets(ts);
+
+  // Send snapshot to client every frame
+  send({
+    type:'snap',
+    p0:{ x:players[0].x, y:players[0].y, vx:players[0].vx, vy:players[0].vy,
+         facing:players[0].facing, hp:players[0].hp, dead:players[0].dead, hitFlash:players[0].hitFlash },
+    p1:{ x:players[1].x, y:players[1].y, vx:players[1].vx, vy:players[1].vy,
+         facing:players[1].facing, hp:players[1].hp, dead:players[1].dead, hitFlash:players[1].hitFlash },
+    bullets: bullets.map(b=>({x:b.x,y:b.y,vx:b.vx,owner:b.owner})),
+    scores, round
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  CLIENT UPDATE — read input, send to host, apply received snapshot
+// ══════════════════════════════════════════════════════
+// Client stores last received snapshot and interpolates
+let clientSnap = null;
+
+function clientUpdate(dt, ts) {
+  // Send input to host every frame
+  readMyInput(ts);
+  send({
+    type:'input',
+    left:  !!(keys['ArrowLeft']  || keys['a'] || keys['A'] || touch.left),
+    right: !!(keys['ArrowRight'] || keys['d'] || keys['D'] || touch.right),
+    jump:  jumpPending,
+    down:  !!(keys['ArrowDown']  || keys['s'] || keys['S'] || touch.down),
+    shoot: shootPending,
+    facing: players[myIndex]?.facing ?? 1,
+  });
+  shootPending = false;
+  jumpPending  = false;
+
+  // Apply last received snap (already applied in onNetData)
+  // Just keep rendering whatever we have
+}
+
+// ══════════════════════════════════════════════════════
+//  INPUT
+// ══════════════════════════════════════════════════════
+// remoteInput is set by onNetData when host receives client input
+let remoteInput = { left:false, right:false, jump:false, down:false, shoot:false, facing:1 };
+let remoteJumpConsumed = true;
+let remoteShootConsumed = true;
+
+function readMyInput(ts) {
+  const me = players[myIndex];
+  if (!me || me.dead) return;
+
+  const left  = !!(keys['ArrowLeft']  || keys['a'] || keys['A'] || touch.left);
+  const right = !!(keys['ArrowRight'] || keys['d'] || keys['D'] || touch.right);
+  const jump  = jumpPending;
+  const down  = !!(keys['ArrowDown']  || keys['s'] || keys['S'] || touch.down);
+
+  if (left)       { me.vx = -SPEED; me.facing = -1; }
+  else if (right) { me.vx =  SPEED; me.facing =  1; }
+  else            { me.vx *= 0.78; }
+
+  if (jump && me.onGround) {
+    me.vy = JUMP_FORCE;
+    me.onGround = false;
+  }
+
+  // Fall-through: press down while standing on a non-ground platform
+  if (down && me.onGround && !me.fallThrough) {
+    me.fallThrough = true;
+    me.fallImmuneUntil = performance.now() + FALL_IMMUNITY_MS;
+    me.onGround = false;
+  }
+
+  // Shoot
+  if (shootPending && me.shootCooldown <= 0) {
+    doFireBullet(myIndex);
+    me.shootCooldown = 14;
+  }
+
+  if (isHost) {
+    shootPending = false;
+    jumpPending  = false;
+  }
+  if (me.shootCooldown > 0) me.shootCooldown -= 1;
+}
+
+function applyRemoteInput(ts) {
+  const ri = remoteInput;
+  const remoteIdx = 1 - myIndex; // host controls p0, client controls p1
+  const me = players[remoteIdx];
+  if (!me || me.dead) return;
+
+  if (ri.left)       { me.vx = -SPEED; me.facing = -1; }
+  else if (ri.right) { me.vx =  SPEED; me.facing =  1; }
+  else               { me.vx *= 0.78; }
+
+  if (ri.jump && !remoteJumpConsumed && me.onGround) {
+    me.vy = JUMP_FORCE;
+    me.onGround = false;
+    remoteJumpConsumed = true;
+  }
+
+  if (ri.down && me.onGround && !me.fallThrough) {
+    me.fallThrough = true;
+    me.fallImmuneUntil = performance.now() + FALL_IMMUNITY_MS;
+    me.onGround = false;
+  }
+
+  if (ri.shoot && !remoteShootConsumed && me.shootCooldown <= 0) {
+    doFireBullet(remoteIdx);
+    me.shootCooldown = 14;
+    remoteShootConsumed = true;
+  }
+  if (me.shootCooldown > 0) me.shootCooldown -= 1;
+}
+
+// ── Physics ──
+function simulatePlayer(p, idx, dt, ts) {
+  if (p.dead) return;
+
+  // Apply remote input if this is the non-host player
+  if (isHost && idx === 1) applyRemoteInput(ts);
+
+  p.vy += GRAVITY * dt;
+  p.x  += p.vx * dt;
+  p.y  += p.vy * dt;
+
+  // Walls
+  if (p.x < 0)          { p.x = 0;          p.vx = 0; }
+  if (p.x + p.w > W)    { p.x = W - p.w;    p.vx = 0; }
+
+  // Fell off bottom → die
+  if (p.y > H + 60) {
+    p.dead = true;
+    if (isHost) onPlayerDied(1 - idx);
+    return;
+  }
+
+  // Expire fall-through immunity
+  if (p.fallThrough && performance.now() > p.fallImmuneUntil) {
+    p.fallThrough = false;
+  }
+
+  // Platform collisions
+  p.onGround = false;
+  for (const pl of platforms) {
+    // Skip ground if falling through (never skip ground actually — ground is indestructible)
+    if (pl.ground) {
+      // Always collide with ground
+      if (p.x + p.w > pl.x && p.x < pl.x + pl.w) {
+        if (p.vy >= 0 && p.y + p.h >= pl.y && p.y + p.h <= pl.y + pl.h + 16) {
+          p.y = pl.y - p.h;
+          p.vy = 0;
+          p.onGround = true;
+          p.fallThrough = false;
+        }
+      }
+    } else {
+      // Regular platform — skip if player is falling through
+      if (p.fallThrough) continue;
+      if (p.x + p.w > pl.x && p.x < pl.x + pl.w) {
+        // Only land on top — player must be coming down and feet crossing top surface
+        if (p.vy >= 0 && p.y + p.h >= pl.y && p.y + p.h <= pl.y + pl.h + 14) {
+          // Extra check: player center must be above mid-platform
+          if (p.y + p.h/2 < pl.y + pl.h) {
+            p.y = pl.y - p.h;
+            p.vy = 0;
+            p.onGround = true;
+          }
+        }
+      }
+    }
+  }
+
+  if (p.hitFlash > 0) p.hitFlash -= dt;
+}
+
+function simulateBullets(ts) {
+  const DT = 1; // bullets always step at 1
+  bullets = bullets.filter(b => {
+    b.x += b.vx;
+    if (b.x < -30 || b.x > W + 30) return false;
+
+    // Hit enemy player
+    const enemy = players[1 - b.owner];
+    if (enemy && !enemy.dead) {
+      if (b.x + 6 > enemy.x && b.x - 6 < enemy.x + enemy.w &&
+          b.y + 6 > enemy.y && b.y - 6 < enemy.y + enemy.h) {
+        enemy.hp--;
+        enemy.hitFlash = 8;
+        if (enemy.hp <= 0) {
+          enemy.dead = true;
+          onPlayerDied(b.owner);
+        }
+        return false;
+      }
+    }
+
+    // Hit platform
+    for (const pl of platforms) {
+      if (b.x > pl.x && b.x < pl.x + pl.w &&
+          b.y > pl.y && b.y < pl.y + pl.h) return false;
+    }
+    return true;
+  });
+}
+
+function doFireBullet(ownerIdx) {
+  const p = players[ownerIdx];
+  if (!p || p.dead) return;
+  bullets.push({
+    x: p.x + p.w / 2,
+    y: p.y + p.h * 0.4,
+    vx: p.facing * BULLET_SPEED,
+    owner: ownerIdx,
+  });
+}
+
+// ── Round/Game logic (host only) ──
+function onPlayerDied(winnerIdx) {
+  if (phase !== 'playing') return;
+  phase = 'roundEnd';
+  scores[winnerIdx]++;
+  updateHUD();
+
+  const color = winnerIdx === 0 ? '#00e5ff' : '#ff3d71';
+  const name  = winnerIdx === 0 ? 'P1' : 'P2';
+
+  const gameOver = round >= TOTAL_ROUNDS;
+  send({ type:'roundEnd', winnerIdx, scores, gameOver });
+
+  if (gameOver) {
+    const finalWinner = scores[0] >= scores[1] ? 0 : 1;
+    const fn = finalWinner === 0 ? 'P1' : 'P2';
+    const fc = finalWinner === 0 ? '#00e5ff' : '#ff3d71';
+    showOverlay(fn + ' ПОБЕДИЛ!', `${scores[0]} — ${scores[1]}`, fc, 0);
+    phase = 'gameOver';
+    setTimeout(() => returnToMenu(), 5000);
+  } else {
+    showOverlay(name + ' УБИЛ!', `${scores[0]} — ${scores[1]}`, color, 0);
+    setTimeout(() => { beginNextRound(); }, 2200);
+  }
+}
+
+function returnToMenu() {
+  hideOverlay();
+  document.getElementById('gameWrap').classList.add('hidden');
+  showScreen('menuScreen');
+  if (peer) { peer.destroy(); peer = null; }
+}
+
+// ══════════════════════════════════════════════════════
+//  NETWORK DATA HANDLER
+// ══════════════════════════════════════════════════════
+function onNetData(data) {
+  if (!data || !data.type) return;
+
+  // HOST receives client inputs
+  if (isHost && data.type === 'input') {
+    const prev = remoteInput;
+    if (data.jump  && !prev.jump)  remoteJumpConsumed  = false;
+    if (data.shoot && !prev.shoot) remoteShootConsumed = false;
+    remoteInput = data;
+    return;
+  }
+
+  // CLIENT receives from host
+  if (!isHost) {
+    if (data.type === 'snap') {
+      // Apply authoritative world state
+      if (players.length < 2) return;
+      applySnap(data.p0, players[0]);
+      applySnap(data.p1, players[1]);
+      bullets = data.bullets.map(b => ({ ...b, y: players[b.owner]?.y ?? 0 }));
+      scores  = data.scores;
+      updateHUD();
+      return;
+    }
+    if (data.type === 'roundStart') {
+      round  = data.round;
+      scores = data.scores;
+      resetRound();
+      phase  = 'countdown';
+      countdownVal   = COUNTDOWN;
+      countdownAccum = 0;
+      updateHUD();
+      showOverlay(String(COUNTDOWN), `РАУНД ${round}`, '#ffd700', 0);
+      return;
+    }
+    if (data.type === 'phasePlay') {
+      phase = 'playing';
+      hideOverlay();
+      return;
+    }
+    if (data.type === 'countdown') {
+      showOverlay(String(data.val), `РАУНД ${round}`, '#ffd700', 0);
+      return;
+    }
+    if (data.type === 'roundEnd') {
+      scores = data.scores;
+      updateHUD();
+      const color = data.winnerIdx === 0 ? '#00e5ff' : '#ff3d71';
+      const name  = data.winnerIdx === 0 ? 'P1' : 'P2';
+      phase = 'roundEnd';
+      if (data.gameOver) {
+        const finalWinner = scores[0] >= scores[1] ? 0 : 1;
+        const fn = finalWinner === 0 ? 'P1' : 'P2';
+        const fc = finalWinner === 0 ? '#00e5ff' : '#ff3d71';
+        showOverlay(fn + ' ПОБЕДИЛ!', `${scores[0]} — ${scores[1]}`, fc, 0);
+        setTimeout(() => returnToMenu(), 5000);
+      } else {
+        showOverlay(name + ' УБИЛ!', `${scores[0]} — ${scores[1]}`, color, 0);
+      }
+      return;
+    }
+  }
+}
+
+function applySnap(snap, p) {
+  p.x       = snap.x;
+  p.y       = snap.y;
+  p.vx      = snap.vx;
+  p.vy      = snap.vy;
+  p.facing  = snap.facing;
+  p.hp      = snap.hp;
+  p.dead    = snap.dead;
+  p.hitFlash= snap.hitFlash;
+}
+
+// ══════════════════════════════════════════════════════
+//  DRAW
+// ══════════════════════════════════════════════════════
+const COLORS = ['#00e5ff', '#ff3d71'];
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(42,42,58,0.4)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  // Center line
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.setLineDash([6,8]);
+  ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Platforms
+  platforms.forEach(pl => {
+    if (pl.ground) {
+      ctx.fillStyle = '#1a1a2a';
+      ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
+      ctx.fillStyle = '#2a2a4a';
+      ctx.fillRect(pl.x, pl.y, pl.w, 2);
+    } else {
+      ctx.fillStyle = '#1c1c2e';
+      ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
+      ctx.fillStyle = 'rgba(120,120,220,0.5)';
+      ctx.fillRect(pl.x, pl.y, pl.w, 2);
+    }
+  });
+
+  // Bullets
+  bullets.forEach(b => {
+    const col = COLORS[b.owner];
+    ctx.save();
+    ctx.shadowColor = col;
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = col + '44';
+    ctx.beginPath();
+    ctx.arc(b.x - b.vx * 1.8, b.y, 3, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  // Players
+  players.forEach((p, i) => {
+    if (p.dead) return;
+    const col = COLORS[i];
+    const flash = p.hitFlash > 0;
+    ctx.save();
+    ctx.shadowColor = col;
+    ctx.shadowBlur = flash ? 30 : 16;
+
+    // Body
+    ctx.fillStyle = flash ? '#ffffff' : col + 'bb';
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    ctx.strokeStyle = flash ? '#fff' : col;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(p.x, p.y, p.w, p.h);
+
+    // Eye
+    ctx.fillStyle = flash ? '#f00' : '#fff';
+    const eyeX = p.facing > 0 ? p.x + p.w - 7 : p.x + 5;
+    ctx.beginPath();
+    ctx.arc(eyeX, p.y + 10, 3, 0, Math.PI*2);
+    ctx.fill();
+
+    // Gun
+    const gunY = p.y + p.h * 0.38;
+    const gunX = p.facing > 0 ? p.x + p.w : p.x;
+    ctx.strokeStyle = flash ? '#fff' : col;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(gunX, gunY);
+    ctx.lineTo(gunX + p.facing * 11, gunY);
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+
+    // HP dots above player
+    const dotR = 4, dotGap = 11;
+    const totalW = (MAX_HP - 1) * dotGap;
+    const startX = p.x + p.w/2 - totalW/2;
+    for (let h = 0; h < MAX_HP; h++) {
+      ctx.beginPath();
+      ctx.arc(startX + h * dotGap, p.y - 10, dotR, 0, Math.PI*2);
+      ctx.fillStyle = h < p.hp ? col : '#333';
+      ctx.fill();
+      ctx.strokeStyle = col + '88';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // "YOU" label
+    if (i === myIndex) {
+      ctx.fillStyle = '#ffffff88';
+      ctx.font = 'bold 8px Share Tech Mono';
+      ctx.textAlign = 'center';
+      ctx.fillText('YOU', p.x + p.w/2, p.y - 18);
+    }
+
+    ctx.restore();
+  });
+}
+
+// ── OVERLAY ──
+function showOverlay(big, sub, color, autohide) {
+  document.getElementById('overlayBig').textContent = big;
+  document.getElementById('overlayBig').style.color = color;
+  document.getElementById('overlaySub').textContent = sub;
+  document.getElementById('overlay').classList.remove('hidden');
+  if (autohide > 0) setTimeout(hideOverlay, autohide);
+}
+function hideOverlay() {
+  document.getElementById('overlay').classList.add('hidden');
+}
+
+// ── RESIZE ──
+function resize() {
+  const wrap  = document.getElementById('gameWrap');
+  const ctrlH = window.matchMedia('(pointer: coarse)').matches ? 130 : 0;
+  W = canvas.width  = wrap.clientWidth;
+  H = canvas.height = wrap.clientHeight - 48 - ctrlH;
+  if (platforms.length) platforms = buildPlatforms(W, H);
+}
+window.addEventListener('resize', () => {
+  resize();
+  if (players.length) {
+    // Keep players in bounds after resize
+    players.forEach(p => { if (p.y > H) p.y = H - p.h - 10; });
+  }
+});
+
+// ══════════════════════════════════════════════════════
+//  KEYBOARD — edge-trigger for shoot and jump
+// ══════════════════════════════════════════════════════
+const SHOOT_KEYS = new Set(['Enter','Control','z','Z','x','X']);
+const JUMP_KEYS  = new Set(['ArrowUp','w','W',' ']);
+const shootKeyHeld = new Set();
+const jumpKeyHeld  = new Set();
+
+document.addEventListener('keydown', e => {
+  const k = e.key;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(k)) e.preventDefault();
+
+  if (SHOOT_KEYS.has(k)) {
+    if (!shootKeyHeld.has(k)) { shootPending = true; shootKeyHeld.add(k); }
+    e.preventDefault(); return;
+  }
+  if (JUMP_KEYS.has(k)) {
+    if (!jumpKeyHeld.has(k)) { jumpPending = true; jumpKeyHeld.add(k); }
+    e.preventDefault(); return;
+  }
+  keys[k] = true;
+});
+document.addEventListener('keyup', e => {
+  shootKeyHeld.delete(e.key);
+  jumpKeyHeld.delete(e.key);
+  keys[e.key] = false;
+});
+
+// ══════════════════════════════════════════════════════
+//  TOUCH CONTROLS
+// ══════════════════════════════════════════════════════
+function ctrlDown(k) {
+  if (k === 'jump') { jumpPending = true; }
+  touch[k] = true;
+  document.getElementById({left:'btnLeft',right:'btnRight',jump:'btnJump',down:'btnDown'}[k])?.classList.add('active');
+}
+function ctrlUp(k) {
+  touch[k] = false;
+  document.getElementById({left:'btnLeft',right:'btnRight',jump:'btnJump',down:'btnDown'}[k])?.classList.remove('active');
+}
+function ctrlShootDown() {
+  shootPending = true;
+  document.getElementById('btnShoot')?.classList.add('active');
+}
+function ctrlShootUp() {
+  document.getElementById('btnShoot')?.classList.remove('active');
+}
+
+document.getElementById('controls')?.addEventListener('touchmove', e => e.preventDefault(), { passive:false });
+</script>
+</body>
+</html>
